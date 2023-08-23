@@ -1,3 +1,4 @@
+version: "3.8"
 services:
   bitcoin-core:
     image: ruimarinho/bitcoin-core:23.0-alpine
@@ -5,7 +6,7 @@ services:
       -testnet=1
       -server=1
       -rpcuser=rpcuser
-      -rpcpassword=6ffb57ab46aa726
+      -rpcpassword=VLSsigner1
       -zmqpubrawblock=tcp://127.0.0.1:38332
       -zmqpubrawtx=tcp://127.0.0.1:38333
       -rpcport=18111
@@ -16,7 +17,9 @@ services:
       - data:/home/bitcoin/.bitcoin
     ports:
       # - host:container
-      - 18111:18332
+      - 18332:18332
+      - 18444:18444
+      - 18443:18443
 
 volumes:
   data:
