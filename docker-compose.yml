@@ -24,6 +24,10 @@ services:
   core-lightning:
     build:
       dockerfile: ./Dockerfile
+    command:
+      -conf=/home/cln/.lightning/testnet-config
+      -network=testnet
+      -log-file=/home/cln/.lightning/testnet/lightning.log
     volumes:
       - data:/home/cln/.lightning
     depends_on:
