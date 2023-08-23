@@ -21,5 +21,13 @@ services:
       - 18444:18444
       - 18443:18443
 
+  core-lightning:
+    build:
+      dockerfile: ./Dockerfile
+    volumes:
+      - data:/home/cln/.lightning
+    depends_on:
+      - bitcoin-core
+
 volumes:
   data:
