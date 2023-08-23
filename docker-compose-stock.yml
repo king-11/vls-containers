@@ -1,0 +1,44 @@
+version: "3.8"
+services:
+  bitcoin-core:
+    image: ruimarinho/bitcoin-core:23.0-alpine
+    command:
+      -testnet=1
+      -server=1
+      -rpcuser=rpcuser
+      -rpcpassword=VLSsigner1
+      -zmqpubrawblock=tcp://127.0.0.1:38332
+      -zmqpubrawtx=tcp://127.0.0.1:38333
+      -rpcport=18111
+      -txindex=1
+      -blockfilterindex=1
+    volumes:
+      - data:/home/bitcoin/.bitcoin
+    expose:
+      - 18332
+    ports:
+      - 18333:18333
+
+  core-lightning:
+    image: elementsproject/lightningd
+    command:
+      - --bitcoin-rpcuser=rpcuser
+      - --bitcoin-rpcpassword=VLSsigner1
+      - --network=testnet
+      - --plugin-dir=/usr/libexec/c-lightning/plugins
+      - --log-level=info
+    environment:
+      EXPOSE_TCP: "true"
+    expose:
+      - 9735
+    ports:
+      - 9735:9735
+    volumes:
+      - clightning_bitcoin_datadir:/root/.lightning
+      - data:/root/.bitcoin
+    depends_on:
+      - bitcoin-core
+
+volumes:
+  data:
+  clightning_bitcoin_datadir:
