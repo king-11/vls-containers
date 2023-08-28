@@ -1,6 +1,90 @@
-FROM debian:bookworm-slim as builder
+# This dockerfile is meant to compile a core-lightning image with clboss
+# It is using multi stage build:
+# * downloader: Download litecoin/bitcoin and qemu binaries needed for core-lightning
+# * builder: Compile core-lightning dependencies, then core-lightning itself with static linking
+# * final: Copy the binaries required at runtime
+# From the root of the repository, run "docker build -t yourimage:yourtag ."
 
-RUN apt-get update
+# - downloader -
+FROM --platform=${TARGETPLATFORM:-${BUILDPLATFORM}} debian:bookworm-slim as downloader
+
+ARG TARGETPLATFORM
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
+    echo 'Etc/UTC' > /etc/timezone && \
+    dpkg-reconfigure --frontend noninteractive tzdata && \
+    apt-get update -qq && \
+    apt-get install -qq -y locales && \
+    sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+    echo 'LANG="en_US.UTF-8"' > /etc/default/locale && \
+    dpkg-reconfigure -f noninteractive locales && \
+    update-locale LANG=en_US.UTF-8
+
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8
+
+RUN set -ex \
+	&& apt-get update \
+	&& apt-get install -qq --no-install-recommends ca-certificates dirmngr wget
+
+WORKDIR /opt
+
+# install tini binary
+ENV TINI_VERSION=v0.18.0
+RUN { case ${TARGETPLATFORM} in \
+         "linux/amd64")   TINI_ARCH=amd64; TINI_SHA256SUM=eadb9d6e2dc960655481d78a92d2c8bc021861045987ccd3e27c7eae5af0cf33  ;; \
+         "linux/arm64")   TINI_ARCH=arm64; TINI_SHA256SUM=ce3f642d73d58d7c8d745e65b5a9b5de7040fbfa1f7bee2f6207bb28207d8ca1  ;; \
+         "linux/arm32v7") TINI_ARCH=armhf; TINI_SHA256SUM=efc2933bac3290aae1180a708f58035baf9f779833c2ea98fcce0ecdab68aa61  ;; \
+         *) echo "ERROR: Unsupported TARGETPLATFORM: ${TARGETPLATFORM}."; exit 1  ;; \
+      esac; } \
+    && wget -q --timeout=60 --waitretry=0 --tries=8 -O /tini \
+         "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-static-${TINI_ARCH}" \
+    && echo "${TINI_SHA256SUM}  /tini" | sha256sum -c - \
+    && chmod +x /tini
+
+# install bitcoin binaries
+ARG BITCOIN_VERSION=23.0
+RUN { case ${TARGETPLATFORM} in \
+         "linux/amd64")   BITCOIN_TARBALL=bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz  ;; \
+         "linux/arm64")   BITCOIN_TARBALL=bitcoin-${BITCOIN_VERSION}-aarch64-linux-gnu.tar.gz  ;; \
+         "linux/arm32v7") BITCOIN_TARBALL=bitcoin-${BITCOIN_VERSION}-arm-linux-gnueabihf.tar.gz  ;; \
+         *) echo "ERROR: Unsupported TARGETPLATFORM: ${TARGETPLATFORM}."; exit 1  ;; \
+      esac; } \
+    && BITCOIN_URL=https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/${BITCOIN_TARBALL} \
+    && BITCOIN_ASC_URL=https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/SHA256SUMS \
+    && mkdir /opt/bitcoin && cd /opt/bitcoin \
+    && wget -q --timeout=60 --waitretry=0 --tries=8 -O ${BITCOIN_TARBALL} "${BITCOIN_URL}" \
+    && wget -q --timeout=60 --waitretry=0 --tries=8 -O SHA256SUMS "${BITCOIN_ASC_URL}" \
+    && grep ${BITCOIN_TARBALL} SHA256SUMS | tee ${BITCOIN_TARBALL}.sha256sum \
+    && sha256sum -c ${BITCOIN_TARBALL}.sha256sum \
+    && BD=bitcoin-${BITCOIN_VERSION}/bin \
+    && tar -xzvf ${BITCOIN_TARBALL} ${BD}/bitcoin-cli --strip-components=1 \
+    && rm ${BITCOIN_TARBALL} SHA256SUMS ${BITCOIN_TARBALL}.sha256sum
+
+# - builder -
+FROM --platform=${TARGETPLATFORM:-${BUILDPLATFORM}} debian:bookworm-slim as builder
+
+ARG MAKE_NPROC=0
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
+    echo 'Etc/UTC' > /etc/timezone && \
+    dpkg-reconfigure --frontend noninteractive tzdata && \
+    apt-get update -qq && \
+    apt-get install -qq -y locales && \
+    sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+    echo 'LANG="en_US.UTF-8"' > /etc/default/locale && \
+    dpkg-reconfigure -f noninteractive locales && \
+    update-locale LANG=en_US.UTF-8
+
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8
+
 RUN apt-get install -qq -y --no-install-recommends \
         autoconf \
         automake \
@@ -33,22 +117,6 @@ RUN apt-get install -qq -y --no-install-recommends \
         zlib1g \
         zlib1g-dev
 
-ENV DEBIAN_FRONTEND noninteractive
-
-RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
-    echo 'Etc/UTC' > /etc/timezone && \
-    dpkg-reconfigure --frontend noninteractive tzdata && \
-    apt-get update -qq && \
-    apt-get install -qq -y locales && \
-    sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
-    echo 'LANG="en_US.UTF-8"' > /etc/default/locale && \
-    dpkg-reconfigure -f noninteractive locales && \
-    update-locale LANG=en_US.UTF-8
-
-ENV LANG=en_US.UTF-8 \
-    LANGUAGE=en_US.UTF-8 \
-    LC_ALL=en_US.UTF-8
-
 RUN mkdir /tmp/su-exec && cd /tmp/su-exec && \
     wget -q --timeout=60 --waitretry=0 --tries=8 -O su-exec.c "https://raw.githubusercontent.com/ncopa/su-exec/master/su-exec.c" && \
     mkdir -p /tmp/su-exec_install/usr/local/bin && \
@@ -72,25 +140,27 @@ RUN curl --connect-timeout 5 --max-time 15 --retry 8 --retry-delay 0 --retry-all
     pip3 install grpcio-tools
 
 RUN cd /tmp && \
-    git clone -b 2023-08-remote-hsmd-v23.08rc3 --recursive --depth 1 https://github.com/lightning-signer/c-lightning.git
-
-WORKDIR /tmp/c-lightning/
-
-RUN /root/.local/bin/poetry install
-
-RUN ./configure --prefix=/usr/local \
+    git clone -b 2023-08-remote-hsmd-v23.08 --recursive --depth 1 https://github.com/lightning-signer/c-lightning.git lightning && \
+    cd /tmp/lightning && \
+    wget -q --timeout=60 --waitretry=0 --tries=8 \
+      -O ./pyproject.toml 'https://raw.githubusercontent.com/ElementsProject/lightning/9f1e1ada2a0274db982a59d912313e3e9684a32b/pyproject.toml' && \
+    wget -q --timeout=60 --waitretry=0 --tries=8 \
+      -O ./poetry.lock 'https://raw.githubusercontent.com/ElementsProject/lightning/9f1e1ada2a0274db982a59d912313e3e9684a32b/poetry.lock' && \
+    /root/.local/bin/poetry install && \
+    ./configure --prefix=/usr/local \
       --disable-address-sanitizer \
       --disable-compat \
       --disable-fuzzing \
       --disable-ub-sanitize \
       --disable-valgrind \
       --enable-rust \
-      --enable-static
+      --enable-static && \
+    make -j$( [ ${MAKE_NPROC} -gt 0 ] && echo ${MAKE_NPROC} || nproc) && \
+    /root/.local/bin/poetry run make DESTDIR=/tmp/lightning_install install && \
+    { [ ! -d ./plugin/clnrest ] || pip3 install -r ./plugins/clnrest/requirements.txt; } && \
+    { [ ! -d ./contrib/pyln-client ] || pip3 install ./contrib/pyln-client; }
 
-RUN /root/.local/bin/poetry run make -j$(nproc)
-
-RUN /root/.local/bin/poetry run make DESTDIR=/tmp/lightning_install install
-
+# CLBOSS
 RUN apt-get install -qq -y --no-install-recommends \
         libev-dev \
         libcurl4-gnutls-dev \
@@ -98,25 +168,41 @@ RUN apt-get install -qq -y --no-install-recommends \
         dnsutils \
         autoconf-archive && \
     cd /tmp && \
-    git clone https://github.com/ZmnSCPxj/clboss
-
-WORKDIR /tmp/clboss
-
-RUN autoreconf -f -i && \
-    ./configure --prefix=/usr/local
-
-RUN make -j$(nproc) && \
+    git clone --recurse-submodules https://github.com/ksedgwic/clboss.git && \
+    cd clboss && \
+    git checkout vls-testnet-mods && \
+    echo && autoreconf -f -i && \
+    ./configure --prefix=/usr/local && \
+    make -j$( [ ${MAKE_NPROC} -gt 0 ] && echo ${MAKE_NPROC} || nproc) && \
     make DESTDIR=/tmp/clboss_install install
 
-FROM debian:bookworm-slim as runner
+# - final -
+FROM --platform=${TARGETPLATFORM:-${BUILDPLATFORM}} debian:bookworm-slim as final
 
-ARG LIGHTNINGD_UID=100
-ENV LIGHTNINGD_HOME=/home/cln
-ENV LIGHTNINGD_DATA=${LIGHTNINGD_HOME}/.lightning
+ARG LIGHTNINGD_UID=1001
+ENV LIGHTNINGD_HOME=/home/lightning
+ENV LIGHTNINGD_DATA=${LIGHTNINGD_HOME}/.lightning \
+    LIGHTNINGD_RPC_PORT=9835 \
+    LIGHTNINGD_PORT=9735 \
+    LIGHTNINGD_NETWORK=testnet
 
-COPY ./entrypoint.sh /entrypoint.sh
+RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
+    echo 'Etc/UTC' > /etc/timezone && \
+    dpkg-reconfigure --frontend noninteractive tzdata && \
+    apt-get update && \
+    apt-get install -qq -y locales && \
+    sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+    echo 'LANG="en_US.UTF-8"' > /etc/default/locale && \
+    dpkg-reconfigure -f noninteractive locales && \
+    update-locale LANG=en_US.UTF-8
 
-RUN apt-get update
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8
+
+#COPY --from=builder /tmp/lightning/tools/docker-entrypoint.sh /entrypoint.sh
+COPY ./entrypoint-lightning.sh /entrypoint.sh
+
 RUN apt-get install -y --no-install-recommends \
         inotify-tools \
         libpq5 \
@@ -124,7 +210,7 @@ RUN apt-get install -y --no-install-recommends \
         python3-pip \
         qemu-user-static \
         socat && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends    `# 'CLBOSS dependencies'` \
         dnsutils \
         libev-dev \
         libcurl4-gnutls-dev \
@@ -134,22 +220,22 @@ RUN apt-get install -y --no-install-recommends \
     chmod 0755 /entrypoint.sh && \
     useradd --no-log-init --user-group \
       --create-home --home-dir ${LIGHTNINGD_HOME} \
-      --shell /bin/bash --uid ${LIGHTNINGD_UID} cln
+      --shell /bin/bash --uid ${LIGHTNINGD_UID} lightning && \
+    mkdir "${LIGHTNINGD_DATA}" && \
+    touch "${LIGHTNINGD_DATA}/config" && \
+    chown -R lightning:lightning "${LIGHTNINGD_DATA}"
+
 
 COPY --from=builder /tmp/su-exec_install/ /
 COPY --from=builder /tmp/lightning_install/ /
 COPY --from=builder /usr/local/lib/python3.11/dist-packages/ /usr/local/lib/python3.11/dist-packages/
 COPY --from=builder /tmp/clboss_install/ /
+COPY --from=downloader /opt/bitcoin/bin /usr/bin
+COPY --from=downloader "/tini" /usr/bin/tini
 
-WORKDIR "${LIGHTNINGD_DATA}"
+WORKDIR "${LIGHTNINGD_HOME}"
 
-COPY testnet-config .
-COPY testnet-env .
-
-VOLUME ["/home/cln/.lightning"]
-
-ENTRYPOINT ["/entrypoint.sh"]
-
-RUN lightningd -version
-
+VOLUME "${LIGHTNINGD_DATA}"
+EXPOSE ${LIGHTNINGD_PORT} ${LIGHTNINGD_RPC_PORT}
+ENTRYPOINT  [ "/usr/bin/tini", "-g", "--", "/entrypoint.sh" ]
 CMD ["lightningd"]
