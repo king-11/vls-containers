@@ -2,36 +2,67 @@ version: "3.8"
 services:
   bitcoin-core:
     image: ruimarinho/bitcoin-core:23.0-alpine
+    container_name: bitcoind
     command:
       -testnet=1
       -server=1
       -rpcuser=rpcuser
       -rpcpassword=VLSsigner1
-      -zmqpubrawblock=tcp://127.0.0.1:38332
-      -zmqpubrawtx=tcp://127.0.0.1:38333
-      -rpcport=18111
+      -zmqpubrawblock=tcp://bitcoind:38332
+      -zmqpubrawtx=tcp://bitcoind:38333
+      -rpcport=18332
       -txindex=1
       -blockfilterindex=1
     volumes:
-      # - host:container
       - data:/home/bitcoin/.bitcoin
+    expose:
+      - 18332
     ports:
-      # - host:container
       - 18332:18332
-      - 18444:18444
-      - 18443:18443
+      - 38332:38332
+      - 38333:38333
+    networks:
+      - LN_testing
 
   core-lightning:
+    container_name: core-lightning
     build:
       dockerfile: ./Dockerfile
     command:
-      -conf=/home/cln/.lightning/testnet-config
-      -network=testnet
-      -log-file=/home/cln/.lightning/testnet/lightning.log
+      - --bitcoin-rpcconnect=bitcoind
+      - --bitcoin-rpcuser=rpcuser
+      - --bitcoin-rpcpassword=VLSsigner1
+      - --network=testnet
+      - --plugin-dir=/usr/libexec/c-lightning/plugins
+      - --log-level=info
+      - --max-locktime-blocks=288
+      - --bind-addr=core-lightning:19735
+      - --announce-addr=core-lightning:19735
     volumes:
-      - data:/home/cln/.lightning
-    depends_on:
+      - clightning_debian:/home/lightning/.lightning
+      - data:/root/.bitcoin
+    expose:
+      - 9735
+      - 9835
+    ports:
+      - 9735:9735
+      - 9835:9835
+      - 19735:19735
+    networks:
+      - LN_testing
+    links:
       - bitcoin-core
+    depends_on:
+      bitcoin-core:
+        condition: service_started
+        restart: true
+    environment:
+      EXPOSE_TCP: "true"
+      env_file: ./testnet-env
 
 volumes:
   data:
+  clightning_debian:
+
+networks:
+  LN_testing:
