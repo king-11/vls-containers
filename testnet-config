@@ -1,9 +1,0 @@
-log-level=info
-bitcoin-rpcuser=rpcuser
-bitcoin-rpcpassword=VLSsigner1
-bitcoin-rpcconnect=127.0.0.1
-bitcoin-rpcport=18332
-max-locktime-blocks=288
-subdaemon=hsmd:remote_hsmd_socket
-bind-addr=0.0.0.0:19735
-announce-addr=23.93.101.158:19735
