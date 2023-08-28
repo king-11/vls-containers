@@ -201,7 +201,7 @@ ENV LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8
 
 #COPY --from=builder /tmp/lightning/tools/docker-entrypoint.sh /entrypoint.sh
-COPY ./entrypoint-lightning.sh /entrypoint.sh
+COPY ./entrypoint.sh /entrypoint.sh
 
 RUN apt-get install -y --no-install-recommends \
         inotify-tools \

@@ -41,7 +41,7 @@ ARG LIGHTNINGD_UID=100
 ENV LIGHTNINGD_HOME=/home/cln
 ENV LIGHTNINGD_DATA=${LIGHTNINGD_HOME}/.lightning
 
-COPY ./entrypoint.sh /entrypoint.sh
+COPY ./entrypoint_alpine.sh /entrypoint.sh
 
 COPY --from=builder /usr/bin/lightningd /usr/bin/
 COPY --from=builder /usr/bin/lightning-cli /usr/bin/
