@@ -58,11 +58,11 @@ services:
         restart: true
     environment:
       EXPOSE_TCP: "true"
-      env_file: ./testnet-env
+      env_file: ../assets/testnet-env
 
 volumes:
   data:
-  clightning_alpine:
+  clightning:
 
 networks:
   LN_testing:
