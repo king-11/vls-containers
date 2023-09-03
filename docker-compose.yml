@@ -1,7 +1,8 @@
 version: "3.8"
 services:
   bitcoin-core:
-    image: ruimarinho/bitcoin-core:23.0-alpine
+    build:
+      dockerfile: ./bitcoind/Dockerfile
     container_name: bitcoind
     command:
       -testnet=1
