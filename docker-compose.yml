@@ -22,10 +22,11 @@ services:
       - 38332:38332
       - 38333:38333
     networks:
-      - LN_testing
+      LN_testing:
+        aliases:
+          - bitcoind
 
   core-lightning:
-    container_name: core-lightning
     build:
       dockerfile: ./Dockerfile
     command:
@@ -39,7 +40,7 @@ services:
       - --bind-addr=core-lightning:19735
       - --announce-addr=core-lightning:19735
     volumes:
-      - clightning_debian:/home/lightning/.lightning
+      - clightning:/home/lightning/.lightning
       - data:/root/.bitcoin
     expose:
       - 9735
@@ -49,7 +50,9 @@ services:
       - 9835:9835
       - 19735:19735
     networks:
-      - LN_testing
+      LN_testing:
+        aliases:
+          - core-lightning
     links:
       - bitcoin-core
     depends_on:
@@ -62,7 +65,9 @@ services:
 
 volumes:
   data:
-  clightning_debian:
+    name: bitcoin_data
+    external: true
+  clightning:
 
 networks:
   LN_testing:
