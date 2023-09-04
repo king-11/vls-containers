@@ -24,6 +24,18 @@ RUN make -j4
 RUN make install
 RUN rm -rf ${BERKELEYDB_PREFIX}/docs
 
+ENV TINI_VERSION=v0.18.0
+RUN { case ${TARGETPLATFORM} in \
+         "linux/amd64")   TINI_ARCH=amd64; TINI_SHA256SUM=eadb9d6e2dc960655481d78a92d2c8bc021861045987ccd3e27c7eae5af0cf33  ;; \
+         "linux/arm64")   TINI_ARCH=arm64; TINI_SHA256SUM=ce3f642d73d58d7c8d745e65b5a9b5de7040fbfa1f7bee2f6207bb28207d8ca1  ;; \
+         "linux/arm32v7") TINI_ARCH=armhf; TINI_SHA256SUM=efc2933bac3290aae1180a708f58035baf9f779833c2ea98fcce0ecdab68aa61  ;; \
+         *) echo "ERROR: Unsupported TARGETPLATFORM: ${TARGETPLATFORM}."; exit 1  ;; \
+      esac; } \
+    && wget -q --timeout=60 --tries=8 -O /tini \
+         "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-static-${TINI_ARCH}" \
+    && echo "${TINI_SHA256SUM}  /tini" | sha256sum -c - \
+    && chmod +x /tini
+
 # Build stage for Bitcoin Core
 FROM alpine as bitcoin-core
 
@@ -132,6 +144,7 @@ ENV BITCOIN_VERSION=23.0
 ENV BITCOIN_PREFIX=/opt/bitcoin-${BITCOIN_VERSION}
 ENV PATH=${BITCOIN_PREFIX}/bin:$PATH
 
+COPY --from=berkeleydb "/tini" /usr/bin/tini
 COPY --from=bitcoin-core /opt /opt
 COPY ./bitcoind/entrypoint.sh /entrypoint.sh
 COPY ./assets/bitcoin.conf ${BITCOIN_DATA}/
@@ -140,7 +153,7 @@ VOLUME ["/home/bitcoin/.bitcoin"]
 
 EXPOSE 8332 8333 18332 18333 18444
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT  [ "/usr/bin/tini", "-g", "-vvv", "--", "/entrypoint.sh" ]
 
 RUN bitcoind -version | grep "Bitcoin Core version v${BITCOIN_VERSION}"
 
