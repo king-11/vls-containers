@@ -136,8 +136,7 @@ RUN apk --no-cache add \
   boost-thread \
   sqlite-dev \
   libevent \
-  libzmq \
-  su-exec
+  libzmq
 
 ENV BITCOIN_DATA=/home/bitcoin/.bitcoin
 ENV BITCOIN_VERSION=23.0
@@ -152,6 +151,11 @@ COPY ./assets/bitcoin.conf ${BITCOIN_DATA}/
 VOLUME ["/home/bitcoin/.bitcoin"]
 
 EXPOSE 8332 8333 18332 18333 18444
+
+RUN mkdir -p "${BITCOIN_DATA}"
+RUN chown -R bitcoin "${BITCOIN_DATA}"
+
+USER bitcoin
 
 ENTRYPOINT  [ "/usr/bin/tini", "-g", "-vvv", "--", "/entrypoint.sh" ]
 
