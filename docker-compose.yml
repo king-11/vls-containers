@@ -3,6 +3,7 @@ services:
   bitcoin-core:
     build:
       dockerfile: ./bitcoind/Dockerfile
+    image: bitcoind
     container_name: bitcoind
     command:
       - --testnet
@@ -12,6 +13,10 @@ services:
       - data:/home/bitcoin/.bitcoin
     expose:
       - 18332
+      - 8332
+      - 8333
+      - 18333
+      - 18444
     ports:
       - 18332:18332
       - 38332:38332
