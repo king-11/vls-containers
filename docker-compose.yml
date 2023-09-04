@@ -57,7 +57,7 @@ services:
       - bitcoin-core
     depends_on:
       bitcoin-core:
-        condition: service_started
+        condition: service_healthy
         restart: true
     environment:
       EXPOSE_TCP: "true"

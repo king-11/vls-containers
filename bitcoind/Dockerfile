@@ -161,4 +161,7 @@ ENTRYPOINT  [ "/usr/bin/tini", "-g", "-vvv", "--", "/entrypoint.sh" ]
 
 RUN bitcoind -version | grep "Bitcoin Core version v${BITCOIN_VERSION}"
 
+HEALTHCHECK --interval=1m --timeout=3s \
+  CMD ["bitcoin-cli", "getblockcount"]
+
 CMD ["bitcoind"]
