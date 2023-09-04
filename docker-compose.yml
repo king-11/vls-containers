@@ -5,15 +5,9 @@ services:
       dockerfile: ./bitcoind/Dockerfile
     container_name: bitcoind
     command:
-      -testnet=1
-      -server=1
-      -rpcuser=rpcuser
-      -rpcpassword=VLSsigner1
-      -zmqpubrawblock=tcp://bitcoind:38332
-      -zmqpubrawtx=tcp://bitcoind:38333
-      -rpcport=18332
-      -txindex=1
-      -blockfilterindex=1
+      - --testnet
+      - -conf=/home/bitcoin/.bitcoin/bitcoin.conf
+      - -pid=/home/bitcoin/.bitcoin/testnet3/bitcoind-testnet.pid
     volumes:
       - data:/home/bitcoin/.bitcoin
     expose:

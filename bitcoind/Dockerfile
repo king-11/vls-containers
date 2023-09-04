@@ -146,7 +146,7 @@ ENV PATH=${BITCOIN_PREFIX}/bin:$PATH
 COPY --from=berkeleydb "/tini" /usr/bin/tini
 COPY --from=bitcoin-core /opt /opt
 COPY ./bitcoind/entrypoint.sh /entrypoint.sh
-COPY ./assets/bitcoin.conf ${BITCOIN_DATA}/
+COPY ./assets/bitcoin.conf /bitcoin.conf
 
 VOLUME ["/home/bitcoin/.bitcoin"]
 
