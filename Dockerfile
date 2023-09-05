@@ -184,7 +184,8 @@ ENV LIGHTNINGD_HOME=/home/lightning
 ENV LIGHTNINGD_DATA=${LIGHTNINGD_HOME}/.lightning \
     LIGHTNINGD_RPC_PORT=9835 \
     LIGHTNINGD_PORT=9735 \
-    LIGHTNINGD_NETWORK=testnet
+    LIGHTNINGD_NETWORK=testnet \
+    BITCOIND_HOME=/root/.bitcoin
 
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
     echo 'Etc/UTC' > /etc/timezone && \
@@ -236,6 +237,10 @@ COPY --from=downloader "/tini" /usr/bin/tini
 WORKDIR "${LIGHTNINGD_HOME}"
 
 VOLUME "${LIGHTNINGD_DATA}"
+
+RUN mkdir -p "${BITCOIND_HOME}"
+VOLUME "${BITCOIND_HOME}"
+
 EXPOSE ${LIGHTNINGD_PORT} ${LIGHTNINGD_RPC_PORT}
 ENTRYPOINT  [ "/usr/bin/tini", "-g", "--", "/entrypoint.sh" ]
 CMD ["lightningd"]
