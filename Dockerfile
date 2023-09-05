@@ -234,8 +234,6 @@ COPY --from=builder /tmp/clboss_install/ /
 COPY --from=downloader /opt/bitcoin/bin /usr/bin
 COPY --from=downloader "/tini" /usr/bin/tini
 
-WORKDIR "${LIGHTNINGD_HOME}"
-
 VOLUME "${LIGHTNINGD_DATA}"
 
 RUN mkdir -p "${BITCOIND_HOME}"
