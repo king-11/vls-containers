@@ -12,9 +12,9 @@ services:
     volumes:
       - data:/home/bitcoin/.bitcoin
     expose:
-      - 18332
       - 8332
       - 8333
+      - 18332
       - 18333
       - 18444
     ports:
@@ -22,9 +22,7 @@ services:
       - 38332:38332
       - 38333:38333
     networks:
-      LN_testing:
-        aliases:
-          - bitcoind
+      - LN_testing
 
   core-lightning:
     build:
@@ -33,6 +31,7 @@ services:
       - --bitcoin-rpcconnect=bitcoind
       - --bitcoin-rpcuser=rpcuser
       - --bitcoin-rpcpassword=VLSsigner1
+      - --bitcoin-rpcport=18332
       - --network=testnet
       - --plugin-dir=/usr/libexec/c-lightning/plugins
       - --log-level=info
@@ -50,11 +49,9 @@ services:
       - 9835:9835
       - 19735:19735
     networks:
-      LN_testing:
-        aliases:
-          - core-lightning
+      - LN_testing
     links:
-      - bitcoin-core
+      - bitcoin-core:bitcoind
     depends_on:
       bitcoin-core:
         condition: service_healthy
