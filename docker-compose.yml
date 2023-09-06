@@ -27,6 +27,8 @@ services:
   core-lightning:
     build:
       dockerfile: ./Dockerfile
+    image: lightningd
+    container_name: lightningd
     command:
       - --bitcoin-rpcconnect=bitcoind
       - --bitcoin-rpcuser=rpcuser
