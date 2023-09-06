@@ -42,7 +42,6 @@ services:
       - --announce-addr=core-lightning:19735
     volumes:
       - clightning:/home/lightning/.lightning
-      - data:/root/.bitcoin
     expose:
       - 9735
       - 9835

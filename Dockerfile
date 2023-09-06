@@ -237,7 +237,7 @@ COPY --from=downloader "/tini" /usr/bin/tini
 VOLUME "${LIGHTNINGD_DATA}"
 
 RUN mkdir -p "${BITCOIND_HOME}"
-VOLUME "${BITCOIND_HOME}"
+COPY bitcoin.conf "$BITCOIND_HOME"/
 
 EXPOSE ${LIGHTNINGD_PORT} ${LIGHTNINGD_RPC_PORT}
 ENTRYPOINT  [ "/usr/bin/tini", "-g", "--", "/entrypoint.sh" ]
