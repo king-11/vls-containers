@@ -1,0 +1,1 @@
+bitcoin-cli --chain=$BITCOIN_CHAIN getblockchaininfo
