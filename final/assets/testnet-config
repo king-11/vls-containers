@@ -1,0 +1,8 @@
+network=testnet
+bitcoin-rpcuser=rpcuser
+bitcoin-rpcpassword=VLSsigner1
+bitcoin-rpcport=18332
+log-level=info
+max-locktime-blocks=288
+important-plugin=/usr/bin/clboss
+clboss-auto-close=true

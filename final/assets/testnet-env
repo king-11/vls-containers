@@ -1,0 +1,4 @@
+VLS_PORT=17701
+VLS_NETWORK=testnet
+BITCOIND_RPC_URL=http://rpcuser:VLSsigner1@bitcoind:18332
+RUST_LOG=info
