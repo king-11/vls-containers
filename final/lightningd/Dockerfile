@@ -65,7 +65,6 @@ ENV LIGHTNINGD_HOME=/home/${LIGHTNINGD_USER}
 ENV LIGHTNINGD_DATA=${LIGHTNINGD_HOME}/.lightning \
     LIGHTNINGD_RPC_PORT=9835 \
     LIGHTNINGD_PORT=9735 \
-    LIGHTNINGD_NETWORK=testnet \
     BITCOIND_HOME=/root/.bitcoin
 
 COPY lightningd/entrypoint.sh /entrypoint.sh
@@ -88,7 +87,8 @@ VOLUME ["${LIGHTNINGD_DATA}"]
 RUN mkdir -p "${BITCOIND_HOME}" && \
     chown -R lightning:lightning "${BITCOIND_HOME}"
 
-COPY assets/remote_bitcoin.conf "${BITCOIND_HOME}"/bitcoin.conf
+COPY assets/bitcoin.conf "${BITCOIND_HOME}"/bitcoin.conf
+COPY assets/testnet-config /testnet-config
 
 USER lightning
 
