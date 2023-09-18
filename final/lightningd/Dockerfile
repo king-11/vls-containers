@@ -46,6 +46,8 @@ RUN git clone -b 2023-09-gnuc-version --recurse-submodules https://github.com/ks
     make install
 
 FROM alpine:3.16 as runner
+LABEL maintainer.0="Lakshya Singh (@king-11)" \
+  maintainer.1="Dev Random (@devrandom01)"
 
 RUN apk update && \
     apk add \
