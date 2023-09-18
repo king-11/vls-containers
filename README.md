@@ -1,14 +1,14 @@
 # VLS Containers
 
-## Debian Containers
+## Volume Creation
 
 ```
-docker compose -f docker-compose.yml up --build
+docker container create bitcoin_data
+docker container create lightning_data
 ```
 
-## Alpine Containers
+## Docker Compose Run
 
 ```
-cd alpine
-docker compoe -f docker-compose_alpine.yml up --build
+docker compoe -f docker-compose.yml up --build
 ```

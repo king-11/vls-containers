@@ -1,9 +1,4 @@
 VLS_PORT=17701
-VLS_SERIAL_PORT=/dev/ttyACM0
 VLS_NETWORK=testnet
-# If your SOCKET signer is remote, have the proxy listen to all interfaces.
-# Alternatively, set up a secure tunnel to the signer.
-# VLS_BIND=0.0.0.0
-BITCOIND_RPC_URL=http://rpcuser:VLSsigner1@localhost:18332
-GREENLIGHT_VERSION=v0.11.0.1-62-g92cc76a
+BITCOIND_RPC_URL=http://rpcuser:VLSsigner1@bitcoind:18332
 RUST_LOG=info

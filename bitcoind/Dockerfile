@@ -1,60 +1,22 @@
-# Build stage for BerkeleyDB
-FROM alpine as berkeleydb
-
-ARG TARGETPLATFORM
-
-RUN sed -i 's/http\:\/\/dl-cdn.alpinelinux.org/https\:\/\/alpine.global.ssl.fastly.net/g' /etc/apk/repositories
-RUN apk --no-cache add autoconf
-RUN apk --no-cache add automake
-RUN apk --no-cache add build-base
-RUN apk --no-cache add libressl
-
-ENV BERKELEYDB_VERSION=db-4.8.30.NC
-ENV BERKELEYDB_PREFIX=/opt/${BERKELEYDB_VERSION}
-
-RUN wget https://download.oracle.com/berkeley-db/${BERKELEYDB_VERSION}.tar.gz
-RUN tar -xzf *.tar.gz
-RUN sed s/__atomic_compare_exchange/__atomic_compare_exchange_db/g -i ${BERKELEYDB_VERSION}/dbinc/atomic.h
-RUN mkdir -p ${BERKELEYDB_PREFIX}
-
-WORKDIR /${BERKELEYDB_VERSION}/build_unix
-
-RUN ../dist/configure --enable-cxx --disable-shared --with-pic --prefix=${BERKELEYDB_PREFIX}
-RUN make -j4
-RUN make install
-RUN rm -rf ${BERKELEYDB_PREFIX}/docs
-
-ENV TINI_VERSION=v0.18.0
-RUN { case ${TARGETPLATFORM} in \
-         "linux/amd64")   TINI_ARCH=amd64; TINI_SHA256SUM=eadb9d6e2dc960655481d78a92d2c8bc021861045987ccd3e27c7eae5af0cf33  ;; \
-         "linux/arm64")   TINI_ARCH=arm64; TINI_SHA256SUM=ce3f642d73d58d7c8d745e65b5a9b5de7040fbfa1f7bee2f6207bb28207d8ca1  ;; \
-         "linux/arm32v7") TINI_ARCH=armhf; TINI_SHA256SUM=efc2933bac3290aae1180a708f58035baf9f779833c2ea98fcce0ecdab68aa61  ;; \
-         *) echo "ERROR: Unsupported TARGETPLATFORM: ${TARGETPLATFORM}."; exit 1  ;; \
-      esac; } \
-    && wget -q --timeout=60 --tries=8 -O /tini \
-         "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-static-${TINI_ARCH}" \
-    && echo "${TINI_SHA256SUM}  /tini" | sha256sum -c - \
-    && chmod +x /tini
-
 # Build stage for Bitcoin Core
 FROM alpine as bitcoin-core
 
-COPY --from=berkeleydb /opt /opt
-
 RUN sed -i 's/http\:\/\/dl-cdn.alpinelinux.org/https\:\/\/alpine.global.ssl.fastly.net/g' /etc/apk/repositories
-RUN apk --no-cache add autoconf
-RUN apk --no-cache add automake
-RUN apk --no-cache add boost-dev
-RUN apk --no-cache add build-base
-RUN apk --no-cache add chrpath
-RUN apk --no-cache add file
-RUN apk --no-cache add gnupg
-RUN apk --no-cache add libevent-dev
-RUN apk --no-cache add libressl
-RUN apk --no-cache add libtool
-RUN apk --no-cache add linux-headers
-RUN apk --no-cache add sqlite-dev
-RUN apk --no-cache add zeromq-dev
+RUN apk add \
+  autoconf \
+  automake \
+  boost-dev \
+  build-base \
+  chrpath \
+  file \
+  gnupg \
+  libevent-dev \
+  libressl \
+  libtool \
+  linux-headers \
+  sqlite-dev \
+  zeromq-dev
+
 RUN set -ex \
   && for key in \
     152812300785C96444D3334D17565732E08E5E41 \
@@ -109,7 +71,7 @@ RUN ./configure LDFLAGS=-L`ls -d /opt/db*`/lib/ CPPFLAGS=-I`ls -d /opt/db*`/incl
     --with-libs \
     --with-sqlite=yes \
     --with-daemon
-RUN make -j4
+RUN make -j`nproc`
 RUN make install
 RUN strip ${BITCOIN_PREFIX}/bin/bitcoin-cli
 RUN strip ${BITCOIN_PREFIX}/bin/bitcoin-tx
@@ -123,9 +85,8 @@ FROM alpine
 ARG UID=100
 ARG GID=101
 
-LABEL maintainer.0="João Fonseca (@joaopaulofonseca)" \
-  maintainer.1="Pedro Branco (@pedrobranco)" \
-  maintainer.2="Rui Marinho (@ruimarinho)"
+LABEL maintainer.0="Lakshya Singh (@king-11)" \
+  maintainer.1="Dev Random (@devrandom01)"
 
 RUN addgroup bitcoin --gid ${GID} --system
 RUN adduser --uid ${UID} --system bitcoin --ingroup bitcoin
@@ -141,27 +102,33 @@ RUN apk --no-cache add \
 ENV BITCOIN_DATA=/home/bitcoin/.bitcoin
 ENV BITCOIN_VERSION=23.0
 ENV BITCOIN_PREFIX=/opt/bitcoin-${BITCOIN_VERSION}
-ENV PATH=${BITCOIN_PREFIX}/bin:$PATH
 
-COPY --from=berkeleydb "/tini" /usr/bin/tini
-COPY --from=bitcoin-core /opt /opt
-COPY ./bitcoind/entrypoint.sh /entrypoint.sh
-COPY ./assets/bitcoin.conf /bitcoin.conf
+COPY --from=bitcoin-core ${BITCOIN_PREFIX}/bin/bitcoin-cli /usr/bin/bitcoin-cli
+COPY --from=bitcoin-core ${BITCOIN_PREFIX}/bin/bitcoin-tx /usr/bin/bitcoin-tx
+COPY --from=bitcoin-core ${BITCOIN_PREFIX}/bin/bitcoind /usr/bin/bitcoind
+
+COPY bitcoind/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+COPY assets/bitcoin.conf /bitcoin.conf
+
+COPY bitcoind/healthcheck.sh /healthcheck.sh
+RUN chmod +x /healthcheck.sh
 
 VOLUME ["/home/bitcoin/.bitcoin"]
 
 EXPOSE 8332 8333 18332 18333 18444
 
 RUN mkdir -p "${BITCOIN_DATA}"
-RUN chown -R bitcoin "${BITCOIN_DATA}"
+RUN chown -R bitcoin:bitcoin "${BITCOIN_DATA}"
 
 USER bitcoin
 
-ENTRYPOINT  [ "/usr/bin/tini", "-g", "-vvv", "--", "/entrypoint.sh" ]
+ENTRYPOINT  ["/entrypoint.sh" ]
 
 RUN bitcoind -version | grep "Bitcoin Core version v${BITCOIN_VERSION}"
 
-HEALTHCHECK --interval=1m --timeout=3s \
-  CMD ["bitcoin-cli", "getblockcount"]
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s \
+  CMD ["/bin/sh", "-c", "/healthcheck.sh"]
 
 CMD ["bitcoind"]

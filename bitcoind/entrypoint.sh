@@ -9,14 +9,5 @@ if [ $(echo "$1" | cut -c1) = "-" ]; then
   set -- bitcoind "$@"
 fi
 
-if [ $(echo "$1" | cut -c1) = "-" ] || [ "$1" = "bitcoind" ] || [ "$1" = "bitcoin-cli"]; then
-  mkdir -p "$BITCOIN_DATA"
-  chmod 700 "$BITCOIN_DATA"
-
-  echo "$0: setting data directory to $BITCOIN_DATA"
-
-  set -- "$@" -datadir="$BITCOIN_DATA"
-fi
-
 echo
 exec "$@"

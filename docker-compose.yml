@@ -7,7 +7,6 @@ services:
     container_name: bitcoind
     command:
       - --testnet
-      - -conf=/home/bitcoin/.bitcoin/bitcoin.conf
       - -pid=/home/bitcoin/.bitcoin/testnet3/bitcoind-testnet.pid
     volumes:
       - data:/home/bitcoin/.bitcoin
@@ -18,26 +17,24 @@ services:
       - 18333
       - 18444
     ports:
-      - 18332:18332
-      - 38332:38332
+      - 8333:8333
+      - 18333:18333
       - 38333:38333
     networks:
-      - LN_testing
+      LN_testing:
+        aliases:
+          - bitcoind
+    environment:
+      - BITCOIN_CHAIN=test
 
   core-lightning:
     build:
-      dockerfile: ./Dockerfile
+      dockerfile: ./lightningd/Dockerfile
     image: lightningd
     container_name: lightningd
     command:
+      - --conf=/home/lightning/.lightning/testnet-config
       - --bitcoin-rpcconnect=bitcoind
-      - --bitcoin-rpcuser=rpcuser
-      - --bitcoin-rpcpassword=VLSsigner1
-      - --bitcoin-rpcport=18332
-      - --network=testnet
-      - --plugin-dir=/usr/libexec/c-lightning/plugins
-      - --log-level=info
-      - --max-locktime-blocks=288
       - --bind-addr=core-lightning:19735
       - --announce-addr=core-lightning:19735
     volumes:
@@ -47,7 +44,6 @@ services:
       - 9835
     ports:
       - 9735:9735
-      - 9835:9835
       - 19735:19735
     networks:
       - LN_testing
@@ -57,15 +53,17 @@ services:
       bitcoin-core:
         condition: service_healthy
         restart: true
-    environment:
-      EXPOSE_TCP: "true"
-      env_file: ./assets/testnet-env
+    env_file:
+      - ./assets/testnet-env
+
 
 volumes:
   data:
     name: bitcoin_data
     external: true
   clightning:
+    name: lightning_data
+    external: true
 
 networks:
   LN_testing:
