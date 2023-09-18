@@ -85,9 +85,8 @@ FROM alpine
 ARG UID=100
 ARG GID=101
 
-LABEL maintainer.0="João Fonseca (@joaopaulofonseca)" \
-  maintainer.1="Pedro Branco (@pedrobranco)" \
-  maintainer.2="Rui Marinho (@ruimarinho)"
+LABEL maintainer.0="Lakshya Singh (@king-11)" \
+  maintainer.1="Dev Random (@devrandom01)"
 
 RUN addgroup bitcoin --gid ${GID} --system
 RUN adduser --uid ${UID} --system bitcoin --ingroup bitcoin
